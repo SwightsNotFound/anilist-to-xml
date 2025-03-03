@@ -6,9 +6,14 @@ import threading
 import time
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
+import logging
 
 app = Flask(__name__)
 CORS(app)
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 JIKAN_API_URL = "https://api.jikan.moe/v4"
 RATE_LIMIT_DELAY = 1000  # Delay in milliseconds between requests to avoid rate limiting
@@ -81,7 +86,7 @@ def fetch_user_anime_list(anilist_username):
         ]
     except Exception as e:
         if not cancel_event.is_set():
-            print(f'Error fetching user anime list: {e}')
+            logger.error(f'Error fetching user anime list: {e}')
         return None
 
 def fetch_mal_id(anime_title):
@@ -101,9 +106,9 @@ def fetch_mal_id(anime_title):
                 time.sleep(RATE_LIMIT_DELAY / 1000)
             else:
                 if not cancel_event.is_set():
-                    print(f'Error fetching MAL ID for {anime_title} (Attempt {attempt + 1}): {e}')
+                    logger.error(f'Error fetching MAL ID for {anime_title} (Attempt {attempt + 1}): {e}')
                     if attempt == retries - 1:
-                        print(f'Failed to fetch MAL ID for {anime_title} after {retries} attempts.')
+                        logger.error(f'Failed to fetch MAL ID for {anime_title} after {retries} attempts.')
                         return None
     return None
 
@@ -147,7 +152,7 @@ def create_mal_xml(anime_list, xml_username):
             return None
         mal_id = fetch_mal_id(anime['title']) or anime['anilist_id']
         if mal_id is None:
-            print(f'Unable to fetch MAL ID for {anime["title"]}, skipping.')
+            logger.warning(f'Unable to fetch MAL ID for {anime["title"]}, skipping.')
             continue
         anime_elem = ET.SubElement(root, 'anime')
         ET.SubElement(anime_elem, 'series_animedb_id').text = str(mal_id)
@@ -188,6 +193,8 @@ def convert():
     if not anilist_username or not xml_username:
         return jsonify({"error": "Both AniList username and XML username are required"}), 400
 
+    logger.info(f'Received request to convert for AniList user: {anilist_username} and XML user: {xml_username}')
+    
     cancel_event.clear()
     anime_list = fetch_user_anime_list(anilist_username)
     if not anime_list:
@@ -197,12 +204,14 @@ def convert():
     if xml_content is None:
         return jsonify({"error": "Conversion process was cancelled"}), 500
 
+    logger.info(f'Successfully created XML for AniList user: {anilist_username}')
     return jsonify({"xml_content": xml_content})
 
 
 @app.route('/cancel', methods=['POST'])
 def cancel():
     cancel_event.set()
+    logger.info('Process cancelled by user.')
     return jsonify({"message": "Process cancelled"})
 
 
