@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import os
 import requests
 import threading
@@ -7,6 +8,7 @@ import xml.etree.ElementTree as ET
 from xml.dom import minidom
 
 app = Flask(__name__)
+CORS(app)
 
 JIKAN_API_URL = "https://api.jikan.moe/v4"
 RATE_LIMIT_DELAY = 1000  # Delay in milliseconds between requests to avoid rate limiting
@@ -130,7 +132,7 @@ def create_mal_xml(anime_list, xml_username):
 
     root = ET.Element('myanimelist')
     myinfo = ET.SubElement(root, 'myinfo')
-    ET.SubElement(myinfo, 'user_id').text = '0'
+    ET.SubElement(myinfo, 'user_id').text = '15871541'
     ET.SubElement(myinfo, 'user_name').text = xml_username
     ET.SubElement(myinfo, 'user_export_type').text = '1'
     ET.SubElement(myinfo, 'user_total_anime').text = str(len(anime_list))
