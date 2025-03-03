@@ -7,6 +7,7 @@ import time
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
 import logging
+import json
 
 app = Flask(__name__)
 CORS(app)
@@ -15,10 +16,11 @@ CORS(app)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-JIKAN_API_URL = "https://api.jikan.moe/v4"
-RATE_LIMIT_DELAY = 1000  # Delay in milliseconds between requests to avoid rate limiting
-
 cancel_event = threading.Event()
+
+# Load the anime offline database
+with open('anime-offline-database.json', 'r') as f:
+    anime_offline_db = json.load(f)['data']
 
 def fetch_user_anime_list(anilist_username):
     query = '''
@@ -89,27 +91,13 @@ def fetch_user_anime_list(anilist_username):
             logger.error(f'Error fetching user anime list: {e}')
         return None
 
-def fetch_mal_id(anime_title):
-    retries = 3
-    for attempt in range(retries):
-        if cancel_event.is_set():
-            return None
-        try:
-            response = requests.get(f'{JIKAN_API_URL}/anime', params={'q': anime_title, 'limit': 1})
-            response.raise_for_status()
-
-            data = response.json()
-            if data['data'] and len(data['data']) > 0:
-                return data['data'][0]['mal_id']
-        except requests.exceptions.RequestException as e:
-            if e.response and e.response.status_code == 429:
-                time.sleep(RATE_LIMIT_DELAY / 1000)
-            else:
-                if not cancel_event.is_set():
-                    logger.error(f'Error fetching MAL ID for {anime_title} (Attempt {attempt + 1}): {e}')
-                    if attempt == retries - 1:
-                        logger.error(f'Failed to fetch MAL ID for {anime_title} after {retries} attempts.')
-                        return None
+def fetch_mal_id(anilist_id):
+    for anime in anime_offline_db:
+        for source in anime['sources']:
+            if f'https://anilist.co/anime/{anilist_id}' in source:
+                for mal_source in anime['sources']:
+                    if 'https://myanimelist.net/anime/' in mal_source:
+                        return mal_source.split('/')[-1]
     return None
 
 def map_format_to_mal_type(format_):
@@ -150,7 +138,7 @@ def create_mal_xml(anime_list, xml_username):
     for anime in anime_list:
         if cancel_event.is_set():
             return None
-        mal_id = fetch_mal_id(anime['title']) or anime['anilist_id']
+        mal_id = fetch_mal_id(anime['anilist_id']) or anime['anilist_id']
         if mal_id is None:
             logger.warning(f'Unable to fetch MAL ID for {anime["title"]}, skipping.')
             continue
