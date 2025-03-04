@@ -13,10 +13,23 @@ ANILIST_USERNAME = os.getenv('ANILIST_USERNAME')  # AniList username
 XML_USERNAME = os.getenv('XML_USERNAME')  # XML username (can be anything)
 anime_offline_db = []
 
-# Load the anime offline database
-with open('anime-offline-database.json', 'r') as f:
-    anime_offline_db = json.load(f)['data']
+# Function to download the anime-offline-database.json file
+def download_anime_offline_database():
+    url = 'https://raw.githubusercontent.com/manami-project/anime-offline-database/master/anime-offline-database.json'
+    response = requests.get(url)
+    response.raise_for_status()
+    with open('anime-offline-database.json', 'wb') as f:
+        f.write(response.content)
 
+# Load the anime offline database
+def load_anime_offline_database():
+    global anime_offline_db
+    with open('anime-offline-database.json', 'r') as f:
+        anime_offline_db = json.load(f)['data']
+
+# Ensure the anime offline database is downloaded and loaded
+download_anime_offline_database()
+load_anime_offline_database()
 
 def fetch_user_anime_list(anilist_username):
     query = '''
