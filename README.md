@@ -1,3 +1,6 @@
+# Moved
+This has been combined with my website, and has been moved to my own self-hosted [Gitea Server](https://git.swightshome.xyz/)
+
 # Anilist to XML
 A python script that converts your anilist profile to a importable myanimelist xml file.
 
